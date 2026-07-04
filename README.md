@@ -95,7 +95,9 @@ Layout: `cmd/vocab2anki` (entry point) wires the `internal/` packages — `serve
 
 ## Notes and limits
 
-- v1 does no lemmatization: "running" is stored as "running", not "run".
+- Words are lemmatized to their base dictionary form before saving (e.g.
+  "running"/"ran" → "run"), and IPA/audio/dedup use that base form. Turn this off
+  with `[claude].lemmatize = false` to store words exactly as sent.
 - Re-adding an existing word is skipped (context isn't merged into the old card yet).
 - Audio synthesis uses macOS `say`, so the fallback path is macOS-only.
 - The daemon binds to loopback only; nothing is exposed to your network.

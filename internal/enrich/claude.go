@@ -34,6 +34,7 @@ func newClaudeClient(apiKey, model string, maxTokens int) *claudeClient {
 
 // llmResult is the JSON contract we ask the model to return.
 type llmResult struct {
+	Headword     string   `json:"headword"`
 	PartOfSpeech string   `json:"part_of_speech"`
 	Definition   string   `json:"definition"`
 	Examples     []string `json:"examples"`
@@ -64,11 +65,12 @@ type anthropicResponse struct {
 }
 
 const systemPrompt = `You are a lexicographer building English vocabulary flashcards for an advanced learner.
-Given a headword (and optionally the sentence the learner saw it in), respond with ONLY a JSON object, no markdown fences, no commentary. Schema:
+Given a word (and optionally the sentence the learner saw it in), respond with ONLY a JSON object, no markdown fences, no commentary. Schema:
 {
+  "headword": "the base dictionary form (lemma) of the GIVEN WORD ITSELF, to store as the flashcard word. Convert an inflected form to its base: plural->singular noun, conjugated verb (past/participle/gerund/3rd-person)->infinitive, comparative/superlative->base adjective/adverb, and fix an obvious misspelling. IMPORTANT: derive it from the given word alone and do NOT merge in adjacent words from the context sentence; if the given word is a single word, the headword must be a single word too (unless that word is itself a fixed idiom/phrasal verb). The context is only for choosing the right sense. Lowercase unless it is a proper noun.",
   "part_of_speech": "the most relevant part of speech for the given context",
-  "definition": "a clear, learner-friendly English definition in COBUILD style (a full sentence explaining meaning and typical use)",
-  "examples": ["2-3 natural example sentences; if a context sentence is provided, make the first example match that sense"],
+  "definition": "a clear, learner-friendly English definition of the headword in COBUILD style (a full sentence explaining meaning and typical use)",
+  "examples": ["2-3 natural example sentences using the headword; if a context sentence is provided, make the first example match that sense"],
   "collocations": ["2-4 common collocations or phrases"]
 }
 Use the sense that fits the provided context when there is one. Keep it concise.`

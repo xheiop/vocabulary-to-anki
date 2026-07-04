@@ -26,6 +26,10 @@ model = "haiku"
 max_tokens = 1024
 # Path to the `claude` executable (CLI only). Leave as "claude" to use PATH.
 cli_path = "claude"
+# Store the base dictionary form the model infers instead of the exact word sent
+# in (e.g. "running"/"ran" -> "run", "studies" -> "study"). Fixed phrases and
+# already-base words are kept as-is. Set false to store words exactly as sent.
+lemmatize = true
 
 [queue]
 # File on iCloud Drive that the iOS Shortcut appends words to.

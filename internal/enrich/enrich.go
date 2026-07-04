@@ -31,7 +31,8 @@ type Card struct {
 
 // Service produces Cards. It is safe for concurrent use.
 type Service struct {
-	gen generator
+	gen       generator
+	lemmatize bool
 }
 
 // Options selects and configures the LLM backend.
@@ -48,6 +49,9 @@ type Options struct {
 	APIKey string
 	// CLIPath is the `claude` executable (CLI only); empty defaults to "claude".
 	CLIPath string
+	// Lemmatize, when true, stores the base dictionary form (lemma) the model
+	// infers rather than the exact word that was sent in.
+	Lemmatize bool
 }
 
 // New builds an enrichment service using the configured backend.
@@ -64,31 +68,38 @@ func New(opts Options) (*Service, error) {
 	default:
 		return nil, fmt.Errorf("unknown claude provider %q (want \"cli\" or \"api\")", opts.Provider)
 	}
-	return &Service{gen: gen}, nil
+	return &Service{gen: gen, lemmatize: opts.Lemmatize}, nil
 }
 
 // Enrich generates card content for word. contextSentence, if non-empty, steers
-// the sense and the first example. The dictionary lookup and the LLM call run
-// independently; a dictionary miss is non-fatal.
+// the sense and the first example.
+//
+// The LLM runs first because it also resolves the base dictionary form (lemma):
+// when lemmatization is enabled, the returned Card.Word may differ from the
+// input (e.g. "running" -> "run"), and the IPA/audio lookup is done against that
+// lemma. A dictionary miss is non-fatal.
 func (s *Service) Enrich(ctx context.Context, word, contextSentence string) (*Card, error) {
-	dict, dictErr := lookup(ctx, word)
-	// A dictionary error is logged by the caller via the returned card being
-	// partial; we still proceed with the LLM content.
-
 	res, err := s.gen.generate(ctx, word, contextSentence)
 	if err != nil {
 		return nil, err
 	}
 
-	card := &Card{
-		Word:           word,
+	headword := word
+	if s.lemmatize {
+		if lemma := strings.ToLower(strings.TrimSpace(res.Headword)); lemma != "" {
+			headword = lemma
+		}
+	}
+
+	dict, _ := lookup(ctx, headword) // dictionary failures degrade gracefully
+
+	return &Card{
+		Word:           headword,
 		IPA:            dict.IPA,
 		DefinitionHTML: definitionHTML(res),
-		ExamplesHTML:   examplesHTML(res, word, contextSentence),
+		ExamplesHTML:   examplesHTML(res, headword, contextSentence),
 		DictAudioURL:   dict.AudioURL,
-	}
-	_ = dictErr // dictionary failures degrade gracefully; not surfaced as fatal
-	return card, nil
+	}, nil
 }
 
 // definitionHTML renders the part of speech and definition.

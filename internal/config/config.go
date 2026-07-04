@@ -47,6 +47,9 @@ type ClaudeConfig struct {
 	MaxTokens int `toml:"max_tokens"`
 	// CLIPath is the `claude` executable to run (CLI only); empty means "claude".
 	CLIPath string `toml:"cli_path"`
+	// Lemmatize stores the base dictionary form the model infers (e.g.
+	// "running" -> "run") instead of the exact word sent in.
+	Lemmatize bool `toml:"lemmatize"`
 }
 
 type QueueConfig struct {
@@ -68,7 +71,7 @@ func Default() *Config {
 	return &Config{
 		Server:  ServerConfig{Listen: "127.0.0.1:8766"},
 		Anki:    AnkiConfig{URL: "http://127.0.0.1:8765", Deck: "Vocabulary::English", Model: "Vocab2Anki"},
-		Claude:  ClaudeConfig{Provider: "cli", Model: "haiku", MaxTokens: 1024, CLIPath: "claude"},
+		Claude:  ClaudeConfig{Provider: "cli", Model: "haiku", MaxTokens: 1024, CLIPath: "claude", Lemmatize: true},
 		Queue:   QueueConfig{File: "~/Library/Mobile Documents/com~apple~CloudDocs/vocab2anki/vocab-queue.txt"},
 		Pending: PendingConfig{File: "~/Library/Application Support/vocab2anki/pending.json", RetryInterval: 60},
 		Audio:   AudioConfig{Dir: "~/Library/Application Support/vocab2anki/audio"},

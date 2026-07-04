@@ -82,24 +82,29 @@ func (p *Processor) ensureSchema(ctx context.Context) error {
 	return nil
 }
 
-// addNow assumes Anki is reachable. It ensures the schema, deduplicates,
-// enriches, attaches audio, and adds the note.
-func (p *Processor) addNow(ctx context.Context, word, contextSentence, source string) error {
+// addNow assumes Anki is reachable. It ensures the schema, enriches (which also
+// resolves the base form / lemma), deduplicates on that resolved word, attaches
+// audio, and adds the note.
+func (p *Processor) addNow(ctx context.Context, inputWord, contextSentence, source string) error {
 	if err := p.ensureSchema(ctx); err != nil {
 		return err
 	}
+
+	// Enrich first: it may rewrite the word to its dictionary base form (e.g.
+	// "running" -> "run"), so dedup and audio must run against the result.
+	card, err := p.enrich.Enrich(ctx, inputWord, contextSentence)
+	if err != nil {
+		return err
+	}
+	word := card.Word
+
 	exists, err := p.anki.Exists(ctx, word)
 	if err != nil {
 		return err
 	}
 	if exists {
-		log.Printf("skip %q: already in deck", word)
+		log.Printf("skip %q (from %q): already in deck", word, inputWord)
 		return nil
-	}
-
-	card, err := p.enrich.Enrich(ctx, word, contextSentence)
-	if err != nil {
-		return err
 	}
 
 	audioField := ""
@@ -120,16 +125,22 @@ func (p *Processor) addNow(ctx context.Context, word, contextSentence, source st
 		"Audio":      audioField,
 		"Definition": card.DefinitionHTML,
 		"Examples":   card.ExamplesHTML,
-		"Context":    contextHTML(contextSentence, word),
-		"Source":     sourceHTML(source),
-		"AddedAt":    time.Now().Format("2006-01-02 15:04"),
+		// Bold the original inflected form, since that is what appears in the
+		// context sentence.
+		"Context": contextHTML(contextSentence, inputWord),
+		"Source":  sourceHTML(source),
+		"AddedAt": time.Now().Format("2006-01-02 15:04"),
 	}
 
 	id, err := p.anki.AddNote(ctx, fields, []string{"vocab2anki"})
 	if err != nil {
 		return err
 	}
-	log.Printf("added %q (note %d)", word, id)
+	if word != inputWord {
+		log.Printf("added %q (lemma of %q) (note %d)", word, inputWord, id)
+	} else {
+		log.Printf("added %q (note %d)", word, id)
+	}
 	return nil
 }
 
