@@ -1,0 +1,43 @@
+# vocab2anki configuration.
+# Paths starting with ~ are expanded to the current user's home directory.
+
+[server]
+# Local address the HTTP intake listens on. Only bound to loopback.
+listen = "127.0.0.1:8766"
+
+[anki]
+# AnkiConnect endpoint (Anki desktop must be running with the AnkiConnect add-on).
+url = "http://127.0.0.1:8765"
+# Target deck. Sub-decks are created automatically ("::" is the separator).
+deck = "Vocabulary::English"
+# Note type created/used by vocab2anki.
+model = "Vocab2Anki"
+
+[claude]
+# Backend for generating definitions/examples:
+#   "cli" — shell out to the local `claude` command (Claude Code CLI). Reuses
+#           your existing Claude login; no ANTHROPIC_API_KEY needed.
+#   "api" — call the Anthropic HTTP API (requires ANTHROPIC_API_KEY).
+provider = "cli"
+# Model name/alias. For "cli" use an alias like "haiku"/"sonnet"; for "api" use
+# a full model id such as "claude-haiku-4-5".
+model = "haiku"
+# Upper bound on generated tokens per card (API only).
+max_tokens = 1024
+# Path to the `claude` executable (CLI only). Leave as "claude" to use PATH.
+cli_path = "claude"
+
+[queue]
+# File on iCloud Drive that the iOS Shortcut appends words to.
+# The Mac watches this file and imports each new line.
+file = "~/Library/Mobile Documents/com~apple~CloudDocs/vocab2anki/vocab-queue.txt"
+
+[pending]
+# Words that could not be added because Anki was offline are stored here and retried.
+file = "~/Library/Application Support/vocab2anki/pending.json"
+# How often (seconds) to retry the pending queue.
+retry_interval = 60
+
+[audio]
+# Where pronunciation audio is cached before being handed to Anki's media store.
+dir = "~/Library/Application Support/vocab2anki/audio"
