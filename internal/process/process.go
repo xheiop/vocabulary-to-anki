@@ -6,6 +6,7 @@ package process
 import (
 	"context"
 	"log"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -43,8 +44,13 @@ func New(a *anki.Client, e *enrich.Service, au *audio.Service, p *pending.Store)
 // Handle processes one request end to end. Errors are logged rather than
 // returned because there is no caller waiting on the result (intake is async).
 func (p *Processor) Handle(ctx context.Context, req Request) {
-	word := normalize(req.Word)
-	if word == "" {
+	// Some share sources (notably Apple News) hand the Shortcut an article URL or
+	// headline instead of the selected word. Recover the real word — Apple News
+	// puts it in the URL's "highlight" param — and drop inputs that clearly are
+	// not a word, so we never enrich a headline or URL.
+	word, source, ok := resolveWord(req.Word, req.Source)
+	if !ok {
+		log.Printf("ignoring non-word input %q", strings.TrimSpace(req.Word))
 		return
 	}
 
@@ -52,7 +58,7 @@ func (p *Processor) Handle(ctx context.Context, req Request) {
 	// it up once Anki comes online. Enriching first would waste an API call the
 	// word may not be added with.
 	if !p.anki.Available(ctx) {
-		if err := p.pending.Add(pending.Item{Word: word, Context: req.Context, Source: req.Source}); err != nil {
+		if err := p.pending.Add(pending.Item{Word: word, Context: req.Context, Source: source}); err != nil {
 			log.Printf("pending add %q: %v", word, err)
 		} else {
 			log.Printf("anki offline; queued %q for retry", word)
@@ -60,9 +66,44 @@ func (p *Processor) Handle(ctx context.Context, req Request) {
 		return
 	}
 
-	if err := p.addNow(ctx, word, req.Context, req.Source); err != nil {
+	if err := p.addNow(ctx, word, req.Context, source); err != nil {
 		log.Printf("add %q: %v", word, err)
 	}
+}
+
+// resolveWord extracts the vocabulary word to add from a raw intake string and
+// picks the best source link. It returns ok=false when no usable word is found.
+//
+//   - A URL carrying the selected word in a "highlight" query param (Apple News
+//     share) -> that word, with the URL used as the source.
+//   - A plain single word or short phrase -> used as-is.
+//   - A bare URL or a headline/sentence -> rejected.
+func resolveWord(raw, source string) (word, src string, ok bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", source, false
+	}
+	if strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
+		if u, err := url.Parse(raw); err == nil {
+			if h := strings.TrimSpace(u.Query().Get("highlight")); h != "" {
+				return normalize(h), raw, true
+			}
+		}
+		return "", source, false // a URL with no highlighted word
+	}
+	if plausibleWord(raw) {
+		return normalize(raw), source, true
+	}
+	return "", source, false
+}
+
+// plausibleWord accepts a single word or short phrase while rejecting sentences
+// and headlines.
+func plausibleWord(s string) bool {
+	if len(s) > 40 || strings.ContainsAny(s, "?!") {
+		return false
+	}
+	return len(strings.Fields(s)) <= 4
 }
 
 // ensureSchema creates the deck and note type if they do not yet exist,

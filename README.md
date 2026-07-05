@@ -3,8 +3,8 @@
 Select an English word in your browser or on your iPhone and it lands in Anki as a rich flashcard — LLM-written definition and example sentences, IPA, and pronunciation audio — automatically.
 
 ```
-PC browser (userscript) ─┐
-                         ├─▶  vocab2anki daemon (Mac)  ─▶  Anki desktop (AnkiConnect)  ─▶  AnkiMobile
+PC browser (userscript)         -┐
+                                 ├─▶  vocab2anki daemon (Mac)  ─▶  Anki desktop (AnkiConnect)  ─▶  AnkiMobile
 iPhone (Shortcut → iCloud file) ─┘        │
                                           ├─ Claude: definition + examples
                                           ├─ Free Dictionary API: IPA + audio
