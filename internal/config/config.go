@@ -70,7 +70,7 @@ type AudioConfig struct {
 func Default() *Config {
 	return &Config{
 		Server:  ServerConfig{Listen: "127.0.0.1:8766"},
-		Anki:    AnkiConfig{URL: "http://127.0.0.1:8765", Deck: "Vocabulary::English", Model: "Vocab2Anki"},
+		Anki:    AnkiConfig{URL: "http://127.0.0.1:8765", Deck: "Vocabulary::English", Model: "Vocab2Anki Cloze"},
 		Claude:  ClaudeConfig{Provider: "cli", Model: "haiku", MaxTokens: 1024, CLIPath: "claude", Lemmatize: true},
 		Queue:   QueueConfig{File: "~/Library/Mobile Documents/com~apple~CloudDocs/vocab2anki/vocab-queue.txt"},
 		Pending: PendingConfig{File: "~/Library/Application Support/vocab2anki/pending.json", RetryInterval: 60},

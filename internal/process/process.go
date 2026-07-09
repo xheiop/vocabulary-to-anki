@@ -161,16 +161,14 @@ func (p *Processor) addNow(ctx context.Context, inputWord, contextSentence, sour
 	}
 
 	fields := map[string]string{
+		"Text":       card.ClozeText, // the cloze sentence (front/back)
 		"Word":       word,
 		"IPA":        card.IPA,
 		"Audio":      audioField,
 		"Definition": card.DefinitionHTML,
 		"Examples":   card.ExamplesHTML,
-		// Bold the original inflected form, since that is what appears in the
-		// context sentence.
-		"Context": contextHTML(contextSentence, inputWord),
-		"Source":  sourceHTML(source),
-		"AddedAt": time.Now().Format("2006-01-02 15:04"),
+		"Source":     sourceHTML(source),
+		"AddedAt":    time.Now().Format("2006-01-02 15:04"),
 	}
 
 	id, err := p.anki.AddNote(ctx, fields, []string{"vocab2anki"})
@@ -213,14 +211,6 @@ func (p *Processor) RetryPending(ctx context.Context) {
 
 func normalize(word string) string {
 	return strings.ToLower(strings.TrimSpace(word))
-}
-
-// contextHTML escapes and bolds the headword inside the original sentence.
-func contextHTML(sentence, word string) string {
-	if strings.TrimSpace(sentence) == "" {
-		return ""
-	}
-	return enrich.HighlightContext(sentence, word)
 }
 
 // sourceHTML renders a source URL as a link, or plain text otherwise.

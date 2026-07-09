@@ -8,16 +8,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"slices"
 	"time"
 )
 
 // AnkiConnect protocol version this client speaks.
 const apiVersion = 6
 
-// FieldOrder is the field layout of the vocab2anki note type. The card
-// templates below reference these by name.
-var FieldOrder = []string{"Word", "IPA", "Audio", "Definition", "Examples", "Context", "Source", "AddedAt"}
+// FieldOrder is the field layout of the vocab2anki Cloze note type. Text (the
+// cloze sentence) is first, as is conventional for cloze models; the rest are
+// shown on the back.
+var FieldOrder = []string{"Text", "Word", "IPA", "Audio", "Definition", "Examples", "Source", "AddedAt"}
 
 // Client talks to a running Anki desktop via AnkiConnect.
 type Client struct {
@@ -109,18 +112,16 @@ func (c *Client) EnsureModel(ctx context.Context) error {
 	if err := c.invoke(ctx, "modelNames", nil, &names); err != nil {
 		return err
 	}
-	for _, n := range names {
-		if n == c.model {
-			return nil
-		}
+	if slices.Contains(names, c.model) {
+		return nil
 	}
 	params := map[string]any{
 		"modelName":     c.model,
 		"inOrderFields": FieldOrder,
 		"css":           cardCSS,
-		"isCloze":       false,
+		"isCloze":       true,
 		"cardTemplates": []map[string]string{
-			{"Name": "Recall", "Front": frontTemplate, "Back": backTemplate},
+			{"Name": "Cloze", "Front": frontTemplate, "Back": backTemplate},
 		},
 	}
 	return c.invoke(ctx, "createModel", params, nil)

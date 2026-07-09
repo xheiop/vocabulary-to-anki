@@ -20,8 +20,11 @@ type generator interface {
 // attached later by the audio package (this struct only carries the source URL
 // the dictionary provided, which may be empty).
 type Card struct {
-	Word           string
-	IPA            string
+	Word string
+	IPA  string
+	// ClozeText is the sentence-mining sentence with the target word wrapped in
+	// Anki cloze syntax ({{c1::...}}), HTML-escaped and ready for the Text field.
+	ClozeText      string
 	DefinitionHTML string
 	ExamplesHTML   string
 	// DictAudioURL is the human-pronunciation mp3 from the dictionary, or "" if
@@ -96,8 +99,9 @@ func (s *Service) Enrich(ctx context.Context, word, contextSentence string) (*Ca
 	return &Card{
 		Word:           headword,
 		IPA:            dict.IPA,
+		ClozeText:      clozeText(res, word, headword, contextSentence),
 		DefinitionHTML: definitionHTML(res),
-		ExamplesHTML:   examplesHTML(res, headword, contextSentence),
+		ExamplesHTML:   examplesHTML(res, headword),
 		DictAudioURL:   dict.AudioURL,
 	}, nil
 }
@@ -124,7 +128,7 @@ func definitionHTML(r *llmResult) string {
 }
 
 // examplesHTML renders the examples as a bulleted list with the headword bolded.
-func examplesHTML(r *llmResult, word, contextSentence string) string {
+func examplesHTML(r *llmResult, word string) string {
 	if len(r.Examples) == 0 {
 		return ""
 	}

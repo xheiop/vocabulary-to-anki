@@ -1,12 +1,12 @@
 # vocab2anki
 
-Select an English word in your browser or on your iPhone and it lands in Anki as a rich flashcard — LLM-written definition and example sentences, IPA, and pronunciation audio — automatically.
+Select an English word in your browser or on your iPhone and it lands in Anki as a **sentence-mining cloze card** — a real sentence with the target word blanked out, backed by an LLM-written definition, example sentences, IPA, and pronunciation audio — automatically.
 
 ```
 PC browser (userscript)         -┐
                                  ├─▶  vocab2anki daemon (Mac)  ─▶  Anki desktop (AnkiConnect)  ─▶  AnkiMobile
 iPhone (Shortcut → iCloud file) ─┘        │
-                                          ├─ Claude: definition + examples
+                                          ├─ Claude: cloze sentence + definition
                                           ├─ Free Dictionary API: IPA + audio
                                           └─ macOS `say`: audio fallback
 ```
@@ -18,11 +18,11 @@ A single Go binary runs on your Mac. Two thin clients only need to "send a word"
 1. **Intake.** A word arrives two ways:
    - The **browser userscript** POSTs `{word, context, source}` to `http://127.0.0.1:8766/add` (it also grabs the sentence around your selection, which sharpens the generated examples).
    - The **iOS Shortcut** appends the word to a file on iCloud Drive; the daemon watches that file and imports each new line.
-2. **Enrich.** Claude generates a learner-friendly definition, part of speech, 2–3 example sentences (matched to your context sentence when present), and common collocations. By default this runs through your local `claude` command (Claude Code CLI) — no API key required — but you can switch to the Anthropic HTTP API instead (see _Choosing the Claude backend_). The Free Dictionary API supplies the IPA and a human-recorded pronunciation mp3.
+2. **Enrich.** Claude produces a cloze sentence (your context sentence when present, otherwise a natural sentence it writes) with the target word wrapped in `{{c1::...}}`, plus a learner-friendly definition, part of speech, extra example sentences, and common collocations. By default this runs through your local `claude` command (Claude Code CLI) — no API key required — but you can switch to the Anthropic HTTP API instead (see _Choosing the Claude backend_). The Free Dictionary API supplies the IPA and a human-recorded pronunciation mp3.
 3. **Audio.** The dictionary mp3 is used when available; otherwise the word is synthesized locally with macOS `say`.
-4. **Add.** The note is added to Anki via AnkiConnect, with audio stored in the media collection. Duplicates (by word) are skipped. If Anki is closed, the word is parked in a pending file and retried until Anki reopens.
+4. **Add.** A **Cloze note** is added to Anki via AnkiConnect, with audio stored in the media collection. Duplicates (by word) are skipped. If Anki is closed, the word is parked in a pending file and retried until Anki reopens.
 
-The card front shows the word and auto-plays the audio; the back shows IPA, definition, examples (headword bolded), the original context sentence, and the source link. Light and dark modes are both styled.
+The card **front** is the sentence with the word blanked out (sentence mining), e.g. _"The detective was determined to `[...]` the mystery."_ The **back** reveals the word plus its IPA, auto-played pronunciation, definition, extra examples, and the source link. Light and dark modes are both styled.
 
 ## Prerequisites
 
@@ -59,6 +59,8 @@ make install     # installs the binary + config, renders the launchd plist
 make logs        # tail ~/Library/Logs/vocab2anki.log
 make uninstall   # stop and remove the service
 ```
+
+The daemon runs with the **installed** config at `~/.config/vocab2anki/config.toml`. `make install` refreshes that copy from the repo's `config.toml` every time (it deletes the old one first), so edit `config.toml` in the repo and re-run `make install` to apply changes — don't hand-edit the installed copy, it will be overwritten.
 
 ### Browser userscript
 

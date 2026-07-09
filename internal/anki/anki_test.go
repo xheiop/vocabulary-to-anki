@@ -30,7 +30,7 @@ func mockAnki(t *testing.T, results map[string]any) (*Client, *map[string]json.R
 		_ = json.NewEncoder(w).Encode(map[string]any{"result": res, "error": nil})
 	}))
 	t.Cleanup(srv.Close)
-	return New(srv.URL, "Vocabulary::English", "Vocab2Anki"), &captured
+	return New(srv.URL, "Vocabulary::English", "Vocab2Anki Cloze"), &captured
 }
 
 func TestExists(t *testing.T) {
@@ -84,7 +84,7 @@ func TestAddNoteSendsFields(t *testing.T) {
 }
 
 func TestEnsureModelSkipsWhenPresent(t *testing.T) {
-	c, captured := mockAnki(t, map[string]any{"modelNames": []string{"Basic", "Vocab2Anki"}})
+	c, captured := mockAnki(t, map[string]any{"modelNames": []string{"Basic", "Vocab2Anki Cloze"}})
 	if err := c.EnsureModel(context.Background()); err != nil {
 		t.Fatal(err)
 	}

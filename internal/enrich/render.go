@@ -5,12 +5,6 @@ import "html"
 // Exported rendering helpers shared with the process package so that all HTML
 // escaping for card fields lives in one place.
 
-// HighlightContext escapes sentence for HTML and bolds whole-word,
-// case-insensitive occurrences of word.
-func HighlightContext(sentence, word string) string {
-	return boldWord(html.EscapeString(sentence), word)
-}
-
 // EscapeText escapes text for use in element content.
 func EscapeText(s string) string {
 	return html.EscapeString(s)

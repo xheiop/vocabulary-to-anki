@@ -91,11 +91,3 @@ func TestBoldWord(t *testing.T) {
 		}
 	}
 }
-
-func TestHighlightContextEscapes(t *testing.T) {
-	got := HighlightContext(`a <b> & "run" here`, "run")
-	want := `a &lt;b&gt; &amp; &#34;<b>run</b>&#34; here`
-	if got != want {
-		t.Fatalf("HighlightContext = %q, want %q", got, want)
-	}
-}

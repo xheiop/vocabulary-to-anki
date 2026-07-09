@@ -33,7 +33,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("load config: %v", err)
 	}
-
 	// Collaborators.
 	ankiClient := anki.New(cfg.Anki.URL, cfg.Anki.Deck, cfg.Anki.Model)
 	enrichSvc, err := enrich.New(enrich.Options{

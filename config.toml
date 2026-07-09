@@ -10,8 +10,8 @@ listen = "127.0.0.1:8766"
 url = "http://127.0.0.1:8765"
 # Target deck. Sub-decks are created automatically ("::" is the separator).
 deck = "Vocabulary::English"
-# Note type created/used by vocab2anki.
-model = "Vocab2Anki"
+# Note type created/used by vocab2anki (a Cloze type for sentence mining).
+model = "Vocab2Anki Cloze"
 
 [claude]
 # Backend for generating definitions/examples:

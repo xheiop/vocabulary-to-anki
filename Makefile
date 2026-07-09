@@ -36,7 +36,8 @@ install: build
 	@test -n "$(ANTHROPIC_API_KEY)" || echo "note: ANTHROPIC_API_KEY not set (fine for the default CLI backend)"
 	install -d $(BIN_DIR) $(WORKDIR)
 	install -m 0755 bin/$(BINARY) $(BIN_PATH)
-	@test -f $(CONFIG_DST) || install -m 0644 $(CONFIG_SRC) $(CONFIG_DST)
+	rm -f $(CONFIG_DST)
+	install -m 0644 $(CONFIG_SRC) $(CONFIG_DST)
 	install -d $(HOME)/Library/LaunchAgents
 	sed -e 's|__BIN__|$(BIN_PATH)|g' \
 	    -e 's|__CONFIG__|$(CONFIG_DST)|g' \
