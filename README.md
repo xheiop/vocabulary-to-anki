@@ -64,7 +64,7 @@ The daemon runs with the **installed** config at `~/.config/vocab2anki/config.to
 
 ### Browser userscript
 
-Install `clients/vocab2anki.user.js` in Tampermonkey. Then on any page: select a word → click the little **+ Anki** button (or press **Alt+A**). A toast confirms it was queued.
+Install `clients/vocab2anki.user.js` in Tampermonkey. Then on any page: select a word → click the little **+ Anki** button (or press **Option+A**). A toast confirms it was queued.
 
 ### iPhone
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         vocab2anki
 // @namespace    https://github.com/xheiop/vocab2anki
-// @version      1.0.0
+// @version      1.1.0
 // @description  Select an English word on any page and send it (with its sentence) to the local vocab2anki service, which enriches it and adds it to Anki.
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
@@ -14,7 +14,9 @@
   "use strict";
 
   const ENDPOINT = "http://127.0.0.1:8766/add";
-  const HOTKEY = { alt: true, key: "a" }; // Alt+A sends the current selection
+  // Option+A sends the current selection. e.code is used so the
+  // physical key matches regardless of layout (Option+A types "å" on macOS).
+  const HOTKEY_CODE = "KeyA";
 
   // --- selection helpers ----------------------------------------------------
 
@@ -26,6 +28,18 @@
     // Accept a single word or short phrase; ignore paragraph selections.
     if (!text || text.length > 60 || text.split(/\s+/).length > 4) return "";
     return text;
+  }
+
+  // True when the user is working in a text-entry context (input, textarea,
+  // contenteditable). We stay out of the way there: no button, no hotkey.
+  function inEditable() {
+    const el = document.activeElement;
+    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
+      return true;
+    }
+    const node = window.getSelection() && window.getSelection().anchorNode;
+    const host = node && (node.nodeType === Node.TEXT_NODE ? node.parentElement : node);
+    return !!(host && host.closest && host.closest("input, textarea, [contenteditable=''], [contenteditable=true]"));
   }
 
   // Best-effort: the sentence containing the selection, for context.
@@ -61,9 +75,9 @@
     button = document.createElement("div");
     button.textContent = "+ Anki";
     Object.assign(button.style, {
-      position: "absolute",
-      left: `${x}px`,
-      top: `${y}px`,
+      position: "fixed",
+      left: `${Math.min(x + 10, window.innerWidth - 70)}px`,
+      top: `${Math.min(y + 14, window.innerHeight - 36)}px`,
       zIndex: 2147483647,
       background: "#2d6cdf",
       color: "#fff",
@@ -75,6 +89,7 @@
       userSelect: "none",
     });
     button.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return; // only plain left-click sends
       e.preventDefault();
       e.stopPropagation();
       send();
@@ -125,6 +140,8 @@
     }
     const context = surroundingSentence(sel);
     hideButton();
+    // Clear the selection so the highlight goes away once the word is sent.
+    sel.removeAllRanges();
 
     GM_xmlhttpRequest({
       method: "POST",
@@ -145,30 +162,52 @@
   }
 
   // --- events ---------------------------------------------------------------
+  // Design notes to minimize interference with normal page use:
+  //   * only plain LEFT mouse-up shows the button — right-click (context menu,
+  //     "Look Up", "Copy") and middle-click are never touched;
+  //   * nothing happens inside inputs/textareas/contenteditable editors;
+  //   * all listeners are passive observers except on our own button, so page
+  //     handlers, drag & drop, and native selection toolbars work unchanged.
 
   document.addEventListener("mouseup", (e) => {
-    // Ignore clicks on our own button.
-    if (button && e.target === button) return;
+    if (e.button !== 0) return; // ignore right/middle button
+    if (button && button.contains(e.target)) return; // our own button
+    // Wait a tick: the browser finalizes the selection after mouseup.
     setTimeout(() => {
       const word = selectedWord();
-      if (word) {
-        showButton(e.pageX + 8, e.pageY + 8);
+      if (word && !inEditable()) {
+        showButton(e.clientX, e.clientY);
       } else {
         hideButton();
       }
     }, 10);
   });
 
+  // Any new press outside the button dismisses it (including right-click,
+  // so it never overlaps a context menu).
   document.addEventListener("mousedown", (e) => {
-    if (button && e.target !== button) hideButton();
+    if (button && !button.contains(e.target)) hideButton();
   });
 
+  // Keyboard deselection (Esc, arrow keys) removes the button too.
+  document.addEventListener("selectionchange", () => {
+    if (button) {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) hideButton();
+    }
+  });
+
+  // The button is viewport-fixed; hide it on scroll rather than letting it
+  // drift away from the text it belongs to.
+  document.addEventListener("scroll", () => hideButton(), { passive: true, capture: true });
+
   document.addEventListener("keydown", (e) => {
-    if (e.altKey === HOTKEY.alt && e.key.toLowerCase() === HOTKEY.key) {
-      if (selectedWord()) {
-        e.preventDefault();
-        send();
-      }
+    // Exactly Alt (Option) + A: no Cmd/Ctrl combos, never inside text entry.
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.code !== HOTKEY_CODE) return;
+    if (inEditable()) return;
+    if (selectedWord()) {
+      e.preventDefault();
+      send();
     }
   });
 })();
