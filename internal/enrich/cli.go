@@ -59,10 +59,27 @@ func (c *cliClient) generate(ctx context.Context, word, contextSentence string) 
 		if ctx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf("claude cli timed out")
 		}
+		// On failure the CLI usually exits non-zero with an empty stderr and the
+		// real reason inside stdout's JSON envelope (e.g. "Failed to
+		// authenticate: OAuth session expired"). Surface that instead of a bare
+		// exit status.
+		if msg := envelopeError(stdout.Bytes()); msg != "" {
+			return nil, fmt.Errorf("claude cli: %s", msg)
+		}
 		return nil, fmt.Errorf("claude cli: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 
 	return parseCLIOutput(stdout.Bytes())
+}
+
+// envelopeError extracts the error text from a CLI JSON envelope, or "" if the
+// output is not an envelope / carries no message.
+func envelopeError(out []byte) string {
+	var env cliEnvelope
+	if err := json.Unmarshal(bytes.TrimSpace(out), &env); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(env.Result)
 }
 
 // parseCLIOutput unwraps the CLI JSON envelope and then extracts the model's

@@ -75,6 +75,17 @@ func TestParseCLIOutput(t *testing.T) {
 	}
 }
 
+func TestEnvelopeError(t *testing.T) {
+	// Real shape from a non-zero-exit run: is_error with the reason in result.
+	out := `{"is_error":true,"duration_api_ms":0,"result":"Failed to authenticate: OAuth session expired and could not be refreshed"}`
+	if got := envelopeError([]byte(out)); got != "Failed to authenticate: OAuth session expired and could not be refreshed" {
+		t.Fatalf("envelopeError = %q", got)
+	}
+	if got := envelopeError([]byte("not json at all")); got != "" {
+		t.Fatalf("non-envelope should yield empty, got %q", got)
+	}
+}
+
 func TestBoldWord(t *testing.T) {
 	cases := []struct {
 		text, word, want string
