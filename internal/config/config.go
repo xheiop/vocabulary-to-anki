@@ -50,6 +50,9 @@ type ClaudeConfig struct {
 	// Lemmatize stores the base dictionary form the model infers (e.g.
 	// "running" -> "run") instead of the exact word sent in.
 	Lemmatize bool `toml:"lemmatize"`
+	// ClozeHint shows a short Chinese gloss inside the cloze blank on the card
+	// front, so you know which meaning to produce.
+	ClozeHint bool `toml:"cloze_hint"`
 }
 
 type QueueConfig struct {
@@ -71,7 +74,7 @@ func Default() *Config {
 	return &Config{
 		Server:  ServerConfig{Listen: "127.0.0.1:8766"},
 		Anki:    AnkiConfig{URL: "http://127.0.0.1:8765", Deck: "Vocabulary::English", Model: "Vocab2Anki Cloze"},
-		Claude:  ClaudeConfig{Provider: "cli", Model: "haiku", MaxTokens: 1024, CLIPath: "claude", Lemmatize: true},
+		Claude:  ClaudeConfig{Provider: "cli", Model: "haiku", MaxTokens: 1024, CLIPath: "claude", Lemmatize: true, ClozeHint: true},
 		Queue:   QueueConfig{File: "~/Library/Mobile Documents/com~apple~CloudDocs/vocab2anki/vocab-queue.txt"},
 		Pending: PendingConfig{File: "~/Library/Application Support/vocab2anki/pending.json", RetryInterval: 60},
 		Audio:   AudioConfig{Dir: "~/Library/Application Support/vocab2anki/audio"},

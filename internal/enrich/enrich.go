@@ -36,6 +36,7 @@ type Card struct {
 type Service struct {
 	gen       generator
 	lemmatize bool
+	clozeHint bool
 }
 
 // Options selects and configures the LLM backend.
@@ -55,6 +56,9 @@ type Options struct {
 	// Lemmatize, when true, stores the base dictionary form (lemma) the model
 	// infers rather than the exact word that was sent in.
 	Lemmatize bool
+	// ClozeHint, when true, shows a short Chinese gloss inside the cloze blank
+	// on the card front, so you know which meaning to produce.
+	ClozeHint bool
 }
 
 // New builds an enrichment service using the configured backend.
@@ -71,7 +75,7 @@ func New(opts Options) (*Service, error) {
 	default:
 		return nil, fmt.Errorf("unknown claude provider %q (want \"cli\" or \"api\")", opts.Provider)
 	}
-	return &Service{gen: gen, lemmatize: opts.Lemmatize}, nil
+	return &Service{gen: gen, lemmatize: opts.Lemmatize, clozeHint: opts.ClozeHint}, nil
 }
 
 // Enrich generates card content for word. contextSentence, if non-empty, steers
@@ -96,19 +100,29 @@ func (s *Service) Enrich(ctx context.Context, word, contextSentence string) (*Ca
 
 	dict, _ := lookup(ctx, headword) // dictionary failures degrade gracefully
 
+	hint := ""
+	if s.clozeHint {
+		hint = res.MeaningCN
+	}
+
 	return &Card{
 		Word:           headword,
 		IPA:            dict.IPA,
-		ClozeText:      clozeText(res, word, headword, contextSentence),
+		ClozeText:      clozeText(res, word, headword, contextSentence, hint),
 		DefinitionHTML: definitionHTML(res),
 		ExamplesHTML:   examplesHTML(res, headword),
 		DictAudioURL:   dict.AudioURL,
 	}, nil
 }
 
-// definitionHTML renders the part of speech and definition.
+// definitionHTML renders the Chinese gloss, part of speech, and definition.
 func definitionHTML(r *llmResult) string {
 	var b strings.Builder
+	if cn := sanitizeHint(r.MeaningCN); cn != "" {
+		b.WriteString(`<div class="cn">`)
+		b.WriteString(html.EscapeString(cn))
+		b.WriteString("</div>")
+	}
 	if r.PartOfSpeech != "" {
 		b.WriteString("<i>")
 		b.WriteString(html.EscapeString(r.PartOfSpeech))

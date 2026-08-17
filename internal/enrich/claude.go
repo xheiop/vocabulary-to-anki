@@ -37,6 +37,7 @@ type llmResult struct {
 	Headword     string   `json:"headword"`
 	PartOfSpeech string   `json:"part_of_speech"`
 	Definition   string   `json:"definition"`
+	MeaningCN    string   `json:"meaning_cn"`
 	Cloze        string   `json:"cloze"`
 	Examples     []string `json:"examples"`
 	Collocations []string `json:"collocations"`
@@ -71,7 +72,8 @@ Given a word (and optionally the sentence the learner saw it in), respond with O
   "headword": "the base dictionary form (lemma) of the GIVEN WORD ITSELF, to store as the flashcard word. Convert an inflected form to its base: plural->singular noun, conjugated verb (past/participle/gerund/3rd-person)->infinitive, comparative/superlative->base adjective/adverb, and fix an obvious misspelling. IMPORTANT: derive it from the given word alone and do NOT merge in adjacent words from the context sentence; if the given word is a single word, the headword must be a single word too (unless that word is itself a fixed idiom/phrasal verb). The context is only for choosing the right sense. Lowercase unless it is a proper noun.",
   "part_of_speech": "the most relevant part of speech for the given context",
   "definition": "a clear, learner-friendly English definition of the headword in COBUILD style (a full sentence explaining meaning and typical use)",
-  "cloze": "ONE natural sentence for sentence-mining, with the target word wrapped in Anki cloze syntax, e.g. 'The detective was determined to {{c1::unravel}} the mystery.' If a context sentence is provided, use THAT sentence (lightly cleaned) and wrap the exact word form that appears in it; otherwise write a natural sentence using the word. Wrap ONLY the single target word occurrence in {{c1::...}}, nothing else.",
+  "meaning_cn": "a SHORT Chinese gloss of the headword IN THIS SENSE, 2-10 characters, e.g. '解开、阐明'. Give the sense that fits the context. Chinese only — no English, no pinyin, no parentheses, no explanation. This is shown as the hint inside the blank, so it must point at the meaning without spelling out the English word.",
+  "cloze": "ONE natural sentence for sentence-mining, with the target word wrapped in Anki cloze syntax, e.g. 'The detective was determined to {{c1::unravel}} the mystery.' If a context sentence is provided, use THAT sentence (lightly cleaned) and wrap the exact word form that appears in it; otherwise write a natural sentence using the word. Wrap ONLY the single target word occurrence in {{c1::...}}, nothing else. Do NOT add a hint inside the braces — just {{c1::word}}.",
   "examples": ["1-2 ADDITIONAL example sentences using the headword, different from the cloze sentence"],
   "collocations": ["2-4 common collocations or phrases"]
 }

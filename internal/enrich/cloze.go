@@ -14,20 +14,61 @@ var clozeRE = regexp.MustCompile(`\{\{c\d+::[^}]+\}\}`)
 // when well-formed, and otherwise builds one deterministically from the context
 // sentence or an example. HTML escaping leaves the cloze braces intact because
 // "{", "}" and ":" are not HTML-special.
-func clozeText(r *llmResult, inputWord, headword, contextSentence string) string {
-	if raw := strings.TrimSpace(r.Cloze); clozeRE.MatchString(raw) {
-		return html.EscapeString(raw)
+//
+// hint, when non-empty, is added as an Anki cloze hint ({{c1::word::hint}}) so
+// the card front shows it inside the blank; an empty hint leaves a bare blank.
+func clozeText(r *llmResult, inputWord, headword, contextSentence, hint string) string {
+	raw := strings.TrimSpace(r.Cloze)
+	if !clozeRE.MatchString(raw) {
+		base := strings.TrimSpace(contextSentence)
+		if base == "" && len(r.Examples) > 0 {
+			base = strings.TrimSpace(r.Examples[0])
+		}
+		if base == "" {
+			base = headword
+		}
+		// Prefer wrapping the exact form seen in the context, then the lemma.
+		raw = clozeWrap(base, inputWord, headword)
 	}
+	return html.EscapeString(injectHint(raw, hint))
+}
 
-	base := strings.TrimSpace(contextSentence)
-	if base == "" && len(r.Examples) > 0 {
-		base = strings.TrimSpace(r.Examples[0])
+// clozeDeletionRE captures the number and body of a cloze deletion.
+var clozeDeletionRE = regexp.MustCompile(`\{\{c(\d+)::([^}]*)\}\}`)
+
+// injectHint appends "::hint" to the first cloze deletion that does not already
+// carry a hint, turning {{c1::word}} into {{c1::word::hint}}. Anki then renders
+// the hint inside the blank on the card front.
+func injectHint(cloze, hint string) string {
+	hint = sanitizeHint(hint)
+	if hint == "" {
+		return cloze
 	}
-	if base == "" {
-		base = headword
+	patched := false
+	return clozeDeletionRE.ReplaceAllStringFunc(cloze, func(m string) string {
+		if patched {
+			return m
+		}
+		sub := clozeDeletionRE.FindStringSubmatch(m)
+		if sub == nil {
+			return m
+		}
+		patched = true
+		if strings.Contains(sub[2], "::") {
+			return m // the model already supplied a hint
+		}
+		return "{{c" + sub[1] + "::" + sub[2] + "::" + hint + "}}"
+	})
+}
+
+// sanitizeHint strips characters that would break cloze parsing and caps the
+// length so the blank stays compact.
+func sanitizeHint(hint string) string {
+	hint = strings.NewReplacer("{", "", "}", "", "::", "、").Replace(strings.TrimSpace(hint))
+	if r := []rune(hint); len(r) > 20 {
+		hint = string(r[:20])
 	}
-	// Prefer wrapping the exact form seen in the context sentence, then the lemma.
-	return html.EscapeString(clozeWrap(base, inputWord, headword))
+	return strings.TrimSpace(hint)
 }
 
 // clozeWrap wraps the first whole-word, case-insensitive occurrence of any

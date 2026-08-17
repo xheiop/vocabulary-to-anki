@@ -30,6 +30,11 @@ cli_path = "claude"
 # in (e.g. "running"/"ran" -> "run", "studies" -> "study"). Fixed phrases and
 # already-base words are kept as-is. Set false to store words exactly as sent.
 lemmatize = true
+# Show a short Chinese gloss inside the cloze blank on the card front, e.g.
+# "The detective was determined to [解开] the mystery." — so you know which
+# meaning to produce instead of having to flip the card. Set false for a bare
+# blank (pure recognition).
+cloze_hint = true
 
 [queue]
 # File on iCloud Drive that the iOS Shortcut appends words to.

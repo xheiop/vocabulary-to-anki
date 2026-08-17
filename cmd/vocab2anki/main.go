@@ -42,6 +42,7 @@ func main() {
 		APIKey:    cfg.AnthropicAPIKey,
 		CLIPath:   cfg.Claude.CLIPath,
 		Lemmatize: cfg.Claude.Lemmatize,
+		ClozeHint: cfg.Claude.ClozeHint,
 	})
 	if err != nil {
 		log.Fatalf("init enrich: %v", err)

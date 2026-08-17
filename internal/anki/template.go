@@ -29,6 +29,7 @@ const cardCSS = `.card {
 .ipa { color: #888; font-size: 18px; font-weight: 400; }
 .definition { text-align: left; margin: 12px auto; max-width: 34em; line-height: 1.5; font-size: 18px; }
 .definition i { color: #888; }
+.cn { font-size: 19px; margin-bottom: 6px; }
 .examples { text-align: left; margin: 12px auto; max-width: 34em; font-size: 17px; }
 .examples ul { padding-left: 1.2em; }
 .examples li { margin: 6px 0; line-height: 1.45; }
