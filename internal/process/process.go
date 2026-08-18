@@ -157,6 +157,7 @@ func (p *Processor) addNow(ctx context.Context, inputWord, contextSentence, sour
 			log.Printf("store media %q: %v (continuing without audio)", word, err)
 		} else {
 			audioField = "[sound:" + stored + "]"
+			log.Printf("audio %q: %s", word, res.Source)
 		}
 	}
 

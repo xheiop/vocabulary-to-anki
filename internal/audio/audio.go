@@ -1,16 +1,18 @@
-// Package audio obtains pronunciation audio for a word: it downloads the
-// dictionary's human-recorded mp3 when one exists, and otherwise synthesizes a
-// fallback with macOS's built-in `say` command. Either way it returns a
-// filename and base64 payload ready for AnkiConnect's storeMediaFile.
+// Package audio obtains pronunciation audio for a word, trying three sources in
+// order of quality: the dictionary API's human recording, then Youdao's
+// pronunciation service, then local synthesis with macOS's built-in `say`. It
+// returns a filename and base64 payload ready for AnkiConnect's storeMediaFile.
 package audio
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +24,7 @@ import (
 type Result struct {
 	Filename string // e.g. "vocab2anki-serendipity-ab12cd.mp3"
 	Base64   string // file contents, base64-encoded
+	Source   string // which tier produced it: "dictionary", "youdao" or "say"
 }
 
 // Service produces audio. cacheDir is where synthesized/downloaded files are
@@ -42,24 +45,45 @@ func New(cacheDir string) (*Service, error) {
 	}, nil
 }
 
-// Get returns audio for word. If dictAudioURL is non-empty it is downloaded;
-// otherwise the word is synthesized with `say`. The returned Result is empty
-// (zero value) with no error only if both paths are unavailable.
+// Get returns audio for word, preferring a real human recording and falling
+// back through progressively more synthetic sources:
+//
+//  1. dictAudioURL - the Free Dictionary API's human recording, when it had one;
+//  2. Youdao's pronunciation service, which covers almost every headword;
+//  3. macOS `say`, which always works offline.
+//
+// Each tier is skipped silently when it fails, so a card still gets audio.
 func (s *Service) Get(ctx context.Context, word, dictAudioURL string) (Result, error) {
 	slug := slugify(word)
 
 	if dictAudioURL != "" {
-		if r, err := s.download(ctx, slug, dictAudioURL); err == nil {
+		if r, err := s.download(ctx, slug, dictAudioURL, "dictionary"); err == nil {
 			return r, nil
 		}
-		// fall through to TTS on download failure
+	}
+	if r, err := s.download(ctx, slug, YoudaoAudioURL(word), "youdao"); err == nil {
+		return r, nil
 	}
 	return s.synthesize(ctx, word, slug)
 }
 
-// download fetches the dictionary audio into the cache and encodes it.
-func (s *Service) download(ctx context.Context, slug, url string) (Result, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+// youdaoVoiceType selects Youdao's accent: 2 is US, 1 is UK.
+const youdaoVoiceType = 2
+
+// YoudaoAudioURL builds the Youdao dictionary pronunciation URL for a word.
+func YoudaoAudioURL(word string) string {
+	return fmt.Sprintf("https://dict.youdao.com/dictvoice?audio=%s&type=%d",
+		url.QueryEscape(word), youdaoVoiceType)
+}
+
+// minAudioBytes rejects error pages and empty bodies served with a 200 status;
+// even a very short real recording is comfortably larger than this.
+const minAudioBytes = 256
+
+// download fetches audio from rawURL into the cache and encodes it. source
+// labels which tier the URL came from.
+func (s *Service) download(ctx context.Context, slug, rawURL, source string) (Result, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return Result{}, err
 	}
@@ -75,16 +99,34 @@ func (s *Service) download(ctx context.Context, slug, url string) (Result, error
 	if err != nil {
 		return Result{}, err
 	}
-	ext := filepath.Ext(url)
-	if ext == "" {
-		ext = ".mp3"
+	// Some services answer 200 with an HTML error page rather than audio.
+	if len(data) < minAudioBytes || bytes.HasPrefix(bytes.TrimSpace(data), []byte("<")) {
+		return Result{}, fmt.Errorf("%s returned %d bytes, not audio", source, len(data))
 	}
-	filename := fmt.Sprintf("vocab2anki-%s-%s%s", slug, shortHash(url), ext)
+
+	filename := fmt.Sprintf("vocab2anki-%s-%s%s", slug, shortHash(rawURL), audioExt(rawURL))
 	path := filepath.Join(s.cacheDir, filename)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return Result{}, err
 	}
-	return Result{Filename: filename, Base64: base64.StdEncoding.EncodeToString(data)}, nil
+	return Result{
+		Filename: filename,
+		Base64:   base64.StdEncoding.EncodeToString(data),
+		Source:   source,
+	}, nil
+}
+
+// audioExt picks the file extension from a URL's path, ignoring any query
+// string so that "…/a.mp3?token=x" does not become part of the extension.
+func audioExt(rawURL string) string {
+	path := rawURL
+	if u, err := url.Parse(rawURL); err == nil && u.Path != "" {
+		path = u.Path
+	}
+	if ext := filepath.Ext(path); ext != "" {
+		return ext
+	}
+	return ".mp3"
 }
 
 // synthesize generates audio with the macOS `say` command (AAC in an .m4a
@@ -101,7 +143,11 @@ func (s *Service) synthesize(ctx context.Context, word, slug string) (Result, er
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{Filename: filename, Base64: base64.StdEncoding.EncodeToString(data)}, nil
+	return Result{
+		Filename: filename,
+		Base64:   base64.StdEncoding.EncodeToString(data),
+		Source:   "say",
+	}, nil
 }
 
 // slugify makes a filesystem/Anki-safe token from a word.
